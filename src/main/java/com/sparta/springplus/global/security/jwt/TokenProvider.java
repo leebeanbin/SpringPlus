@@ -9,11 +9,14 @@ import com.sparta.springplus.domain.user.User;
 import com.sparta.springplus.domain.user.UserRefreshToken;
 import com.sparta.springplus.domain.user.repository.UserRefreshTokenRepository;
 import com.sparta.springplus.domain.user.repository.UserRepository;
+import com.sparta.springplus.global.exception.CustomException;
+import com.sparta.springplus.global.enums.ErrorType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.SignatureException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.io.Decoders;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,27 +52,26 @@ public class TokenProvider {
     private final long expirationHours;
     private final long refreshExpirationHours;
     private final long reissueLimit;
-    private final UserRefreshTokenRepository userRefreshTokenRepository;    // 추가
+    private final UserRefreshTokenRepository userRefreshTokenRepository;
 
     private final SignatureAlgorithm SIG = SignatureAlgorithm.HS256;
 
     private final Key key;
 
-
-    private final ObjectMapper objectMapper = new ObjectMapper();    // JWT 역직렬화를 위한 ObjectMapper
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final UserRepository userRepository;
 
     public TokenProvider(
-        @Value("${JWT_KEY}") String secretKey,
-        @Value("${ACCESS_EXPIRATION}") long expirationHours,
-        @Value("${REFRESH_EXPIRATION}") long refreshExpirationHours,
-        UserRefreshTokenRepository userRefreshTokenRepository,
-        UserRepository userRepository) {
+            @Value("${JWT_KEY}") String secretKey,
+            @Value("${ACCESS_EXPIRATION}") long expirationHours,
+            @Value("${REFRESH_EXPIRATION}") long refreshExpirationHours,
+            UserRefreshTokenRepository userRefreshTokenRepository,
+            UserRepository userRepository) {
         this.secretKey = secretKey;
         this.expirationHours = expirationHours;
         this.refreshExpirationHours = refreshExpirationHours;
         this.userRefreshTokenRepository = userRefreshTokenRepository;
-        reissueLimit = refreshExpirationHours * 60 / expirationHours;    // 재발급 한도
+        reissueLimit = refreshExpirationHours * 60 / expirationHours;
 
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         this.key = hmacShaKeyFor(keyBytes);
@@ -96,63 +98,36 @@ public class TokenProvider {
                 .compact();
     }
 
-
     public String validateTokenAndGetSubject(String token) {
-        return Jwts.parserBuilder()
-            .setSigningKey(secretKey.getBytes())
-            .build()
-            .parseClaimsJws(token)
-            .getBody()
-            .getSubject();
-    }
-
-    /**
-     * 리프레시 토큰 발행에 제한을 두었을 때, 만족하는 것을 찾지 못하면 ExpiredJwtException을 터트린다. 이것을 막기 위해서 @Transactional을
-     * 통해 영속성 컨텍스트로 관리해 줍니다.
-     *
-     * @param oldAccessToken
-     * @return
-     * @throws JsonProcessingException
-     */
-    public String recreateAccessToken(String oldAccessToken) throws JsonProcessingException {
-        // Decode the subject from the old access token
-        String subject = decodeJwtPayloadSubject(oldAccessToken);
-        Long userId = Long.parseLong(subject);
-
-        // Fetch the user by ID
-        Optional<User> userOptional = userRepository.findById(userId);
-        if (userOptional.isEmpty()) {
-            throw new RuntimeException("user not found for the given ID: " + userId);
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getSubject();
+        } catch (SignatureException e) {
+            throw new CustomException(ErrorType.INVALID_REFRESH_TOKEN);
+        } catch (ExpiredJwtException e) {
+            throw new CustomException(ErrorType.INVALID_REFRESH_TOKEN);
+        } catch (UnsupportedJwtException e) {
+            throw new CustomException(ErrorType.INVALID_REFRESH_TOKEN);
+        } catch (MalformedJwtException e) {
+            throw new CustomException(ErrorType.INVALID_REFRESH_TOKEN);
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorType.INVALID_REFRESH_TOKEN);
+        } catch (Exception e) {
+            throw new CustomException(ErrorType.UNAPPROVED_USER);
         }
-        User user = userOptional.get();
-
-        // Validate and update the refresh token
-        Optional<UserRefreshToken> userRefreshTokenOptional = userRefreshTokenRepository.findByIdAndReissueCountLessThan(userId, reissueLimit);
-        if (userRefreshTokenOptional.isPresent()) {
-            UserRefreshToken userRefreshToken = userRefreshTokenOptional.get();
-            userRefreshToken.increaseReissueCount();
-            userRefreshTokenRepository.save(userRefreshToken);
-        } else {
-            throw new ExpiredJwtException(null, null, "Refresh token expired or reissue limit exceeded.");
-        }
-
-        // Log the reissued token
-        log.info("Access token reissued for user: {}", user.getUsername());
-
-        // Return the newly created access token
-        return createAccessToken(user.getUsername(), user.getUserRole());
     }
 
     public boolean validateToken(String token) {
-        log.info("validateToken start");
-        log.info("token: {}", token);
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
         } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
             log.info("Invalid JWT Token", e);
         } catch (ExpiredJwtException e) {
-            // refresh token 활용해서 재발급
             log.info("Expired JWT Token", e);
         } catch (UnsupportedJwtException e) {
             log.info("Unsupported JWT Token", e);
@@ -162,13 +137,6 @@ public class TokenProvider {
         return false;
     }
 
-    /**
-     * 리프레스 토큰 자체가 유효한 토큰인지를 검증합니다.
-     *
-     * @param refreshToken
-     * @param oldAccessToken
-     * @throws JsonProcessingException
-     */
     @Transactional(readOnly = true)
     public void validateRefreshToken(String refreshToken, String oldAccessToken)
             throws JsonProcessingException {
@@ -181,39 +149,53 @@ public class TokenProvider {
         log.info("Refresh token validated for user ID: {}", userId);
     }
 
-    // 사용자 엔티티에 있는 refresh 토큰 만료 여부를 확인합니다.
+    @Transactional
+    public String recreateAccessToken(String oldAccessToken) throws JsonProcessingException {
+        String subject = decodeJwtPayloadSubject(oldAccessToken);
+        Long userId = Long.parseLong(subject);
+
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (userOptional.isEmpty()) {
+            throw new RuntimeException("user not found for the given ID: " + userId);
+        }
+        User user = userOptional.get();
+
+        Optional<UserRefreshToken> userRefreshTokenOptional = userRefreshTokenRepository.findByIdAndReissueCountLessThan(userId, reissueLimit);
+        if (userRefreshTokenOptional.isPresent()) {
+            UserRefreshToken userRefreshToken = userRefreshTokenOptional.get();
+            userRefreshToken.increaseReissueCount();
+            userRefreshTokenRepository.save(userRefreshToken);
+        } else {
+            throw new ExpiredJwtException(null, null, "Refresh token expired or reissue limit exceeded.");
+        }
+
+        log.info("Access token reissued for user: {}", user.getUsername());
+        return createAccessToken(user.getUsername(), user.getUserRole());
+    }
+
     public boolean existRefreshToken(String refreshToken) throws JsonProcessingException {
         Long userId = Long.parseLong(decodeJwtPayloadSubject(refreshToken));
         User user = userRepository.findById(userId).orElseThrow(
-            () -> new RuntimeException("user not found"));
+                () -> new RuntimeException("user not found"));
         return user.getRefresh();
     }
 
-
     private String decodeJwtPayloadSubject(String oldAccessToken) throws JsonProcessingException {
         return objectMapper.readValue(
-            new String(Base64.getDecoder().decode(oldAccessToken.split("\\.")[1]),
-                StandardCharsets.UTF_8),
-            Map.class
+                new String(Base64.getDecoder().decode(oldAccessToken.split("\\.")[1]),
+                        StandardCharsets.UTF_8),
+                Map.class
         ).get("sub").toString();
     }
 
-
-    /**
-     * 헤더에서 access 토큰 가져옵니다.
-     * @param request
-     * @return Bearer 헤더가 뽑힌 토큰이 리턴됩니다.
-     */
     public String getAccessTokenFromHeader(HttpServletRequest request) {
         String accessToken = request.getHeader(AUTH_ACCESS_HEADER);
         if (StringUtils.hasText(accessToken) && accessToken.startsWith(BEARER_PREFIX)) {
-            return accessToken.substring(BEARER_PREFIX.length()); // 헤더인 Bearer 을 잘라서 가져온다.
+            return accessToken.substring(BEARER_PREFIX.length());
         }
-
         return accessToken;
     }
 
-    // 헤더에서 refresh 토큰 가져오기
     public String getRefreshTokenFromHeader(HttpServletRequest request) {
         String refreshToken = request.getHeader(AUTH_REFRESH_HEADER);
         if (StringUtils.hasText(refreshToken) && refreshToken.startsWith(BEARER_PREFIX)) {
@@ -222,14 +204,7 @@ public class TokenProvider {
         return refreshToken;
     }
 
-    // 토큰에서 사용자 정보 가져오기
     public Claims getUserInfoFromToken(String token) {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
     }
-
-    // 헤더에 access 토큰 담기
-    public void setHeaderAccessToken(HttpServletResponse response, String newAccessToken) {
-        response.setHeader(AUTH_ACCESS_HEADER, newAccessToken);
-    }
-
 }

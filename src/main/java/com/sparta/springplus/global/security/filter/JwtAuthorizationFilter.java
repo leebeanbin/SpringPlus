@@ -1,56 +1,60 @@
 package com.sparta.springplus.global.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sparta.springplus.domain.common.ApiResponse;
+import com.sparta.springplus.domain.user.repository.UserRepository;
 import com.sparta.springplus.global.enums.AuthEnum;
 import com.sparta.springplus.global.enums.ErrorType;
+import com.sparta.springplus.global.enums.UserRole;
 import com.sparta.springplus.global.exception.ExceptionDto;
+import com.sparta.springplus.global.security.UserDetailsImpl;
+import com.sparta.springplus.global.security.UserDetailsServiceImpl;
 import com.sparta.springplus.global.security.jwt.TokenProvider;
-import com.sparta.springplus.domain.common.ApiResponse;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
 import java.util.Optional;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Slf4j
+@AllArgsConstructor
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenProvider tokenProvider;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public JwtAuthorizationFilter(TokenProvider tokenProvider) {
-        this.tokenProvider = tokenProvider;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
+        String url = request.getRequestURI();
 
-        String requestURI = request.getRequestURI();
-
-        // 회원가입 URL인 경우 토큰 검증을 건너뜀
-        if ("/users".equals(requestURI) && "POST".equalsIgnoreCase(request.getMethod())) {
+        if (url.startsWith("/email") || ((url.startsWith("/users") && "POST".equalsIgnoreCase(
+                request.getMethod())))) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
             String accessToken = tokenProvider.getAccessTokenFromHeader(request);
-            if (tokenProvider.validateToken(accessToken)) {
-                User user = parseUserSpecification(accessToken);
-                AbstractAuthenticationToken authentication = UsernamePasswordAuthenticationToken.authenticated(
-                        user, accessToken, user.getAuthorities());
+            if (accessToken != null && tokenProvider.validateToken(accessToken)) {
+                // token loading -> token 기반으로 Userdetails 생성, token으로 DB에 내가 실제 가진 유저인지 확인
+                UserDetailsImpl user = parseUserSpecification(accessToken);
+                AbstractAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        user, null, user.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else {
@@ -58,22 +62,31 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             }
         } catch (ExpiredJwtException e) {
             reissueAccessToken(request, response, e);
-            return; // Ensure the response is sent after reissuing the token
+            return;
         } catch (Exception e) {
             request.setAttribute("exception", e);
         }
         filterChain.doFilter(request, response);
     }
 
-    private User parseUserSpecification(String token) {
-        String[] split = Optional.ofNullable(token)
-                .filter(subject -> subject.length() >= 10)
-                .map(tokenProvider::validateTokenAndGetSubject)
-                .orElse("anonymous:anonymous")
-                .split(":");
+    private UserDetailsImpl parseUserSpecification(String token) {
+        try {
+            // JWT 토큰에서 주체(subject)를 추출합니다.
+            String subject = tokenProvider.validateTokenAndGetSubject(token);
 
-        return new User(split[0], "", List.of(new SimpleGrantedAuthority(split[1])));
+            // JWT 토큰에서 역할(claim)을 추출합니다.
+            Claims claims = tokenProvider.getUserInfoFromToken(token);
+            String role = claims.get(AuthEnum.AUTHORIZATION_KEY.getValue(), String.class);
+
+            UserDetailsImpl user =  new UserDetailsServiceImpl(userRepository).loadUserByUsername(subject);
+
+            return user;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse user specification from token", e);
+        }
     }
+
+
 
     private void reissueAccessToken(HttpServletRequest request, HttpServletResponse response,
             Exception exception) throws IOException {
@@ -86,7 +99,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             tokenProvider.validateRefreshToken(refreshToken, oldAccessToken);
 
             String newAccessToken = tokenProvider.recreateAccessToken(oldAccessToken);
-            User user = parseUserSpecification(newAccessToken);
+            UserDetailsImpl user = parseUserSpecification(newAccessToken);
             AbstractAuthenticationToken authenticated = UsernamePasswordAuthenticationToken.authenticated(
                     user, newAccessToken, user.getAuthorities());
             authenticated.setDetails(new WebAuthenticationDetails(request));
@@ -107,7 +120,8 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             response.setStatus(errorType.getHttpStatus().value());
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(objectMapper.writeValueAsString(new ExceptionDto(errorType.getMessage())));
+            response.getWriter().write(objectMapper.writeValueAsString(
+                    new ExceptionDto(errorType.getMessage())));
             response.getWriter().flush();
         }
     }

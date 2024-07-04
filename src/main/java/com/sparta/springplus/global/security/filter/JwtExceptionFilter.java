@@ -21,11 +21,10 @@ public class JwtExceptionFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         try {
             filterChain.doFilter(request, response); // JwtAuthenticationFilter 실행
+            // TODO : Exception 잡는 것 고치기
         } catch (Exception e) {
-            if (e instanceof CustomException) {
-                CustomException CustomException = (CustomException) e;
-                hadleAuthenticationException(response, CustomException.getErrorType());
-            }
+            CustomException CustomException = (CustomException) e;
+            hadleAuthenticationException(response, CustomException.getErrorType());
         }
     }
 

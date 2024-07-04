@@ -1,11 +1,14 @@
 package com.sparta.springplus.global.security.filter;
 
-
 import static com.sparta.springplus.global.enums.ResponseMessage.SUCCESS_LOGIN;
 import static com.sparta.springplus.global.enums.ResponseMessage.SUCCESS_LOGOUT;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.sparta.springplus.domain.common.ApiResponse;
+import com.sparta.springplus.domain.user.UserRefreshToken;
+import com.sparta.springplus.domain.user.dto.LoginRequestDto;
+import com.sparta.springplus.domain.user.repository.UserRefreshTokenRepository;
+import com.sparta.springplus.domain.user.repository.UserRepository;
 import com.sparta.springplus.global.enums.AuthEnum;
 import com.sparta.springplus.global.enums.ErrorType;
 import com.sparta.springplus.global.enums.Status;
@@ -14,31 +17,18 @@ import com.sparta.springplus.global.exception.CustomException;
 import com.sparta.springplus.global.exception.ExceptionDto;
 import com.sparta.springplus.global.security.UserDetailsImpl;
 import com.sparta.springplus.global.security.jwt.TokenProvider;
-import com.sparta.springplus.domain.common.ApiResponse;
-import com.sparta.springplus.domain.user.dto.LoginRequestDto;
-import com.sparta.springplus.domain.user.UserRefreshToken;
-import com.sparta.springplus.domain.user.repository.UserRefreshTokenRepository;
-import com.sparta.springplus.domain.user.repository.UserRepository;
-import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Slf4j
@@ -49,20 +39,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserRefreshTokenRepository refreshTokenRepository;
     private final AuthenticationManager authenticationManager;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    private static final String[] AUTH_WHITELIST = {
-            "/users",
-            "/users/login",
-            "/emails"
-    };
+    private final JwtAuthenticationEntryPoint authenticationEntryPoint;
 
     public JwtAuthenticationFilter(TokenProvider tokenProvider, UserRepository userRepository,
             UserRefreshTokenRepository userRefreshTokenRepository,
-            AuthenticationManager authenticationManager) {
+            AuthenticationManager authenticationManager,
+            JwtAuthenticationEntryPoint authenticationEntryPoint) {
         this.tokenProvider = tokenProvider;
         this.userRepository = userRepository;
         this.refreshTokenRepository = userRefreshTokenRepository;
         this.authenticationManager = authenticationManager;
+        this.authenticationEntryPoint = authenticationEntryPoint;
     }
 
     @Override
@@ -71,99 +58,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String requestURI = request.getRequestURI();
 
-        if (isWhitelisted(requestURI)) {
-            if ("/users/login".equals(requestURI)) {
-                try {
-                    attemptAuthentication(request, response);
-                } catch (AuthenticationException e) {
-                    unsuccessfulAuthentication(request, response, e);
-                }
-                return;
-            } else if ("/users/logout".equals(requestURI)) {
-                processLogout(request, response);
-                return;
-            }
-            filterChain.doFilter(request, response);
+        if ("/users/login".equals(requestURI)) {
+            handleLogin(request, response);
+            return;
+        } else if ("/users/logout".equals(requestURI)) {
+            handleLogout(request, response);
             return;
         }
 
-        try {
-            String accessToken = resolveToken(request, AuthEnum.ACCESS_TOKEN.getValue());
-            if (accessToken != null) {
-                try {
-                    if (tokenProvider.validateToken(accessToken)) {
-                        User user = parseUserSpecification(accessToken);
-                        AbstractAuthenticationToken authentication = UsernamePasswordAuthenticationToken.authenticated(
-                                user, accessToken, user.getAuthorities());
-                        authentication.setDetails(new WebAuthenticationDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    } else {
-                        throw new ExpiredJwtException(null, null, "Access token expired");
-                    }
-                } catch (ExpiredJwtException e) {
-                    reissueAccessToken(request, response, e);
-                    return; // Ensure the response is sent after reissuing the token
-                }
-            }
-        } catch (Exception e) {
-            request.setAttribute("exception", e);
-        }
         filterChain.doFilter(request, response);
     }
 
-    private boolean isWhitelisted(String requestURI) {
-        for (String url : AUTH_WHITELIST) {
-            if (requestURI.startsWith(url)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private User parseUserSpecification(String token) {
-        String[] split = Optional.ofNullable(token)
-                .filter(subject -> subject.length() >= 10)
-                .map(tokenProvider::validateTokenAndGetSubject)
-                .orElse("anonymous:anonymous")
-                .split(":");
-
-        return new User(split[0], "", List.of(new SimpleGrantedAuthority(split[1])));
-    }
-
-    private void reissueAccessToken(HttpServletRequest request, HttpServletResponse response,
-            Exception exception) {
+    private void handleLogin(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
         try {
-            String refreshToken = resolveToken(request, AuthEnum.REFRESH_TOKEN.getValue());
-            if (refreshToken == null) {
-                throw exception;
-            }
-            String oldAccessToken = resolveToken(request, AuthEnum.ACCESS_TOKEN.getValue());
-            tokenProvider.validateRefreshToken(refreshToken, oldAccessToken);
+            attemptAuthentication(request, response);
+        } catch (AuthenticationException e) {
+            unsuccessfulAuthentication(request, response, e);
+        }
+    }
 
-            String newAccessToken = tokenProvider.recreateAccessToken(oldAccessToken);
-            User user = parseUserSpecification(newAccessToken);
-            AbstractAuthenticationToken authenticated = UsernamePasswordAuthenticationToken.authenticated(
-                    user, newAccessToken, user.getAuthorities());
-            authenticated.setDetails(new WebAuthenticationDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authenticated);
-
-            response.setHeader(AuthEnum.ACCESS_TOKEN.getValue(), "Bearer " + newAccessToken);
-
-            // Add the message to the response
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.success("Access token reissued successfully")));
-            response.getWriter().flush();
-
-            // Log the reissued token
-            log.info("Access token reissued: {}", newAccessToken);
-        } catch (Exception e) {
-            request.setAttribute("exception", e);
+    private void handleLogout(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            processLogout(request, response);
+        } catch (IOException e) {
+            log.error("Logout failed", e);
         }
     }
 
     public void attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
-            throws AuthenticationException, IOException, ServletException {
+            throws AuthenticationException, IOException {
         LoginRequestDto requestDto = objectMapper.readValue(request.getInputStream(),
                 LoginRequestDto.class);
 
@@ -173,12 +97,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         requestDto.getPassword()
                 )
         );
-
         successfulAuthentication(request, response, authentication);
     }
 
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, Authentication auth)
-            throws IOException, ServletException {
+            throws IOException {
         UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
         com.sparta.springplus.domain.user.User user = userDetails.getUser();
 
@@ -209,7 +132,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         response.addHeader(AuthEnum.ACCESS_TOKEN.getValue(), accessToken);
         response.addHeader(AuthEnum.REFRESH_TOKEN.getValue(), refreshToken);
-
 
         // Construct JSON response
         String jsonResponse = String.format("{\"accessToken\": \"%s\", \"refreshToken\": \"%s\", \"message\": \"%s\"}",
@@ -259,20 +181,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.getWriter().flush();
 
         // Log logout action
-        log.info("user logged out successfully");
-    }
-
-    /**
-     * Request Header 에서 토큰 정보 추출
-     *
-     * @param request
-     * @return
-     */
-    private String resolveToken(HttpServletRequest request, String headerName) {
-        String bearerToken = request.getHeader(headerName);
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(AuthEnum.GRANT_TYPE.getValue())) {
-            return bearerToken.substring(7);
-        }
-        return null;
+        log.info("User logged out successfully");
     }
 }
