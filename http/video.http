@@ -73,7 +73,7 @@ Content-Type: application/json
 
 {
   "email": "{{email}}",
-  "authCode": "V6WVVv8H"
+  "authCode": "QoH0bcLI"
 }
 
 ### 게시물 작성
@@ -85,6 +85,16 @@ Content-Type: application/json
   "title" : "{{title}}",
   "content" : "{{content}}"
 }
+
+### 게시물 단건 조회 with likes
+GET http://localhost:8080/feed/2
+AccessToken: {{AccessToken}}
+Content-Type: application/json
+
+### 게시물 조회 I marked or liked
+GET http://localhost:8080/feed/liked?page=0&size=5
+AccessToken: {{AccessToken}}
+Content-Type: application/json
 
 ### 게시물 조회
 GET http://localhost:8080/feed?page=0&size=5
@@ -150,7 +160,7 @@ GET http://localhost:8080/feed/following
 AccessToken: {{AccessToken}}
 
 ### 피드 좋아요 추가
-POST http://localhost:8080/feed/{{feedId}}/likes
+POST http://localhost:8080/feed/4/likes
 AccessToken: {{AccessToken}}
 
 ### 피드 좋아요 삭제

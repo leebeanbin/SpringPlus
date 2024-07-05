@@ -1,6 +1,8 @@
 package com.sparta.springplus.domain.feed.controller;
 
 
+import com.querydsl.core.Tuple;
+import com.sparta.springplus.domain.feed.dto.GetEachFeedDto;
 import com.sparta.springplus.global.enums.ResponseMessage;
 import com.sparta.springplus.global.security.UserDetailsImpl;
 import com.sparta.springplus.domain.feed.dto.FeedRequestDto;
@@ -10,7 +12,9 @@ import com.sparta.springplus.domain.common.PageableResponse;
 import com.sparta.springplus.domain.user.dto.ResponseEntityDto;
 import com.sparta.springplus.domain.feed.service.FeedService;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,13 +29,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/feed")
+@RequiredArgsConstructor
 public class FeedController {
 
     private final FeedService feedService;
-
-    public FeedController(FeedService feedService) {
-        this.feedService = feedService;
-    }
 
     /**
      * 게시물 작성
@@ -47,6 +48,19 @@ public class FeedController {
         return ResponseEntity.ok(responseEntity);
     }
 
+    @GetMapping("/{feedId}")
+    public GetEachFeedDto getFeed(@PathVariable Long feedId){
+        return feedService.getFeed(feedId);
+    }
+
+    @GetMapping("/liked")
+    public ResponseEntity<List<GetEachFeedDto>> getLikedFeeds(@AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
+
+        return ResponseEntity.ok().body(feedService.getLikedFeedsWithPage(userDetails, page, size).getContent());
+    }
+
     /**
      * 게시물 조회
      * @param page 페이지 수
@@ -54,10 +68,10 @@ public class FeedController {
      * @return 게시물 내용 반환
      */
     @GetMapping
-    public ResponseEntity<PageableResponse<FeedResponseDto>> getFeeds(
+    public ResponseEntity<PageableResponse<FeedResponseDto>> getFeedsWithPage(
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "5") int size) {
-        Page<FeedResponseDto> responseDto = feedService.getFeeds(page, size);
+        Page<FeedResponseDto> responseDto = feedService.getFeedsWithPage(page, size);
         PageableResponse<FeedResponseDto> responseEntity = new PageableResponse<>(responseDto);
         return ResponseEntity.ok(responseEntity);
     }
