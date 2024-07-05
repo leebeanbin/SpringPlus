@@ -1,16 +1,18 @@
 package com.sparta.springplus.domain.feed.dto;
 
-import com.sparta.springplus.global.enums.Status;
 import com.sparta.springplus.domain.feed.Feed;
+import com.sparta.springplus.domain.likes.FeedLikes;
+import com.sparta.springplus.global.enums.Status;
 import lombok.Getter;
 
 @Getter
 public class FeedResponseDto {
-    private Long id;
-    private String title;
-    private String content;
-    private String user;
-    private Status status;
+
+    private final Long id;
+    private final String title;
+    private final String content;
+    private final String user;
+    private final Status status;
 
     public FeedResponseDto(Feed feed) {
         this.id = feed.getId();

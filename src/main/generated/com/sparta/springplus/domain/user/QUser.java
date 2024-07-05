@@ -31,6 +31,8 @@ public class QUser extends EntityPathBase<User> {
 
     public final StringPath email = createString("email");
 
+    public final ListPath<com.sparta.springplus.domain.feed.Feed, com.sparta.springplus.domain.feed.QFeed> feed = this.<com.sparta.springplus.domain.feed.Feed, com.sparta.springplus.domain.feed.QFeed>createList("feed", com.sparta.springplus.domain.feed.Feed.class, com.sparta.springplus.domain.feed.QFeed.class, PathInits.DIRECT2);
+
     public final ListPath<com.sparta.springplus.domain.follow.Follow, com.sparta.springplus.domain.follow.QFollow> followerList = this.<com.sparta.springplus.domain.follow.Follow, com.sparta.springplus.domain.follow.QFollow>createList("followerList", com.sparta.springplus.domain.follow.Follow.class, com.sparta.springplus.domain.follow.QFollow.class, PathInits.DIRECT2);
 
     public final ListPath<com.sparta.springplus.domain.follow.Follow, com.sparta.springplus.domain.follow.QFollow> followingList = this.<com.sparta.springplus.domain.follow.Follow, com.sparta.springplus.domain.follow.QFollow>createList("followingList", com.sparta.springplus.domain.follow.Follow.class, com.sparta.springplus.domain.follow.QFollow.class, PathInits.DIRECT2);

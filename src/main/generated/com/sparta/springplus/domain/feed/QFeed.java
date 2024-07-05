@@ -31,7 +31,7 @@ public class QFeed extends EntityPathBase<Feed> {
 
     public final NumberPath<Long> id = createNumber("id", Long.class);
 
-    public final NumberPath<Integer> likesCount = createNumber("likesCount", Integer.class);
+    public final NumberPath<Long> likesCount = createNumber("likesCount", Long.class);
 
     public final ListPath<com.sparta.springplus.domain.likes.FeedLikes, com.sparta.springplus.domain.likes.QFeedLikes> likesList = this.<com.sparta.springplus.domain.likes.FeedLikes, com.sparta.springplus.domain.likes.QFeedLikes>createList("likesList", com.sparta.springplus.domain.likes.FeedLikes.class, com.sparta.springplus.domain.likes.QFeedLikes.class, PathInits.DIRECT2);
 

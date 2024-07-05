@@ -1,6 +1,8 @@
 package com.sparta.springplus.domain.user;
 
 
+import com.sparta.springplus.domain.feed.Feed;
+import com.sparta.springplus.domain.likes.FeedLikes;
 import com.sparta.springplus.global.enums.ErrorType;
 import com.sparta.springplus.global.enums.Status;
 import com.sparta.springplus.global.enums.UserRole;
@@ -20,8 +22,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.util.ArrayList;
 import java.util.List;
-import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -30,18 +32,17 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @Table(name="user")
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @AllArgsConstructor
 public class User extends TimeStamp {
 
+    /**
+     * 컬럼 - 연관관계 컬럼을 제외한 컬럼을 정의합니다.
+     */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, unique = true)
     private Long id;
-
-    @ManyToOne
-    @JoinColumn(name = "companyId", nullable = false)
-    private Company company;
 
     @Column(nullable = false, unique = true)
     private String username;
@@ -66,14 +67,11 @@ public class User extends TimeStamp {
     @Enumerated(EnumType.STRING)
     private Status status;
 
-    @OneToMany(mappedBy = "fromUser", fetch = FetchType.LAZY)
-    private List<Follow> followingList;
-
-    @OneToMany(mappedBy = "toUser", fetch = FetchType.LAZY)
-    private List<Follow> followerList;
-
     @Column
     private Boolean refresh;
+    /**
+     * 생성자 - 약속된 형태로만 생성가능하도록 합니다.
+     */
 
     @Builder
     public User(String username,String nickname, String hashedPassword, String email,Company company, String intro, Status status) {
@@ -85,11 +83,36 @@ public class User extends TimeStamp {
         this.intro = intro;
         this.status = status;
     }
-    public void checkPassword(String password) {
-        if (!this.password.equals(password)) {
-            throw new IllegalArgumentException("패스워드가 다릅니다.");
-        }
+
+    /**
+     * 연관관계 - Foreign Key 값을 따로 컬럼으로 정의하지 않고 연관 관계로 정의합니다.
+     */
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Feed> feed;
+
+    @ManyToOne
+    @JoinColumn(name = "companyId", nullable = false)
+    private Company company;
+
+    @OneToMany(mappedBy = "fromUser", fetch = FetchType.LAZY)
+    private List<Follow> followingList = new ArrayList<>();
+
+    @OneToMany(mappedBy = "toUser", fetch = FetchType.LAZY)
+    private List<Follow> followerList = new ArrayList<>();
+
+    /**
+     * 연관관계 편의 메소드 - 반대쪽에는 연관관계 편의 메소드가 없도록 주의합니다.
+     */
+    public void addLikeFeed(Feed feed){
+        this.feed.add(feed);
     }
+
+
+    /**
+     * 서비스 메소드 - 외부에서 엔티티를 수정할 메소드를 정의합니다. (단일 책임을 가지도록 주의합니다.)
+     */
+
     // status를 수정하는 매서드 만들기
     public void setStatus(String statusString) {
         if (statusString.equals("탈퇴")) {
