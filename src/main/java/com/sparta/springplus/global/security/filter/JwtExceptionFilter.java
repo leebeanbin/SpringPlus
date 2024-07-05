@@ -21,19 +21,28 @@ public class JwtExceptionFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         try {
             filterChain.doFilter(request, response); // JwtAuthenticationFilter 실행
-            // TODO : Exception 잡는 것 고치기
+        } catch (CustomException e) {
+            handleCustomException(response, e.getErrorType());
         } catch (Exception e) {
-            CustomException CustomException = (CustomException) e;
-            hadleAuthenticationException(response, CustomException.getErrorType());
+            handleGenericException(response, e);
         }
     }
 
-    private void hadleAuthenticationException(HttpServletResponse response, ErrorType errorType)
-            throws IOException, IOException {
-        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    private void handleCustomException(HttpServletResponse response, ErrorType errorType)
+            throws IOException {
+        response.setStatus(errorType.getHttpStatus().value());
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write(new ObjectMapper().writeValueAsString(new ExceptionDto(errorType.getMessage())));
+        response.getWriter().flush();
+    }
+
+    private void handleGenericException(HttpServletResponse response, Exception e)
+            throws IOException {
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(new ObjectMapper().writeValueAsString(new ExceptionDto("Internal Server Error")));
         response.getWriter().flush();
     }
 }

@@ -1,17 +1,16 @@
 package com.sparta.springplus.global.config;
 
+import com.sparta.springplus.domain.user.repository.UserRefreshTokenRepository;
+import com.sparta.springplus.domain.user.repository.UserRepository;
 import com.sparta.springplus.global.security.filter.JwtAuthenticationEntryPoint;
 import com.sparta.springplus.global.security.filter.JwtAuthenticationFilter;
 import com.sparta.springplus.global.security.filter.JwtAuthorizationFilter;
 import com.sparta.springplus.global.security.filter.JwtExceptionFilter;
 import com.sparta.springplus.global.security.jwt.TokenProvider;
-import com.sparta.springplus.domain.user.repository.UserRefreshTokenRepository;
-import com.sparta.springplus.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -23,7 +22,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
-import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 @Configuration
 @RequiredArgsConstructor
@@ -57,7 +55,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthorizationFilter jwtAuthorizationFilter() {
-        return new JwtAuthorizationFilter(tokenProvider,userRepository);
+        return new JwtAuthorizationFilter(tokenProvider, userRepository);
     }
 
     @Bean
@@ -83,7 +81,7 @@ public class SecurityConfig {
                                 .permitAll() // 팔로워 조회
                                 .requestMatchers(HttpMethod.GET, "/users/{userId}/following")
                                 .permitAll() // 팔로잉 조회
-                                .requestMatchers(HttpMethod.GET, "/feed/{{feedId}}/reply")
+                                .requestMatchers(HttpMethod.GET, "/feed/{{feedId}}/**")
                                 .permitAll() // 댓글 조회
                                 .anyRequest().authenticated()    // 그 외의 모든 요청은 인증 필요
                 )
