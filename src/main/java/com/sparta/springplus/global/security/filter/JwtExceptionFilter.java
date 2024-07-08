@@ -22,8 +22,10 @@ public class JwtExceptionFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response); // JwtAuthenticationFilter 실행
         } catch (CustomException e) {
+            System.out.println("Exception caught in JwtExceptionFilter: " + e.getMessage());
             handleCustomException(response, e.getErrorType());
         } catch (Exception e) {
+            System.out.println("Exception caught in JwtExceptionFilter: " + e.getMessage());
             handleGenericException(response, e);
         }
     }
