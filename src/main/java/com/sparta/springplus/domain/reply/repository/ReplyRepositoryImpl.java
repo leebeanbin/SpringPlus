@@ -47,7 +47,7 @@ public class ReplyRepositoryImpl implements ReplyRepositoryCustom {
                 .selectFrom(reply)
                 .join(reply.likesList, replyLikes)
                 .where(predicate)
-                .fetchCount();
+                .fetch().size();
 
         return new PageImpl<>(results, pageable, total);
     }
