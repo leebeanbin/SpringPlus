@@ -1,5 +1,7 @@
 package com.sparta.springplus.domain.reply.dto;
 
+import com.querydsl.core.annotations.QueryProjection;
+import com.sparta.springplus.domain.reply.QReply;
 import com.sparta.springplus.domain.reply.Reply;
 import java.time.LocalDateTime;
 import lombok.Getter;
@@ -25,4 +27,13 @@ public class ReplyResponseDto {
         this.likeCount = reply.getLikesCount();
     }
 
+    public ReplyResponseDto(long id, String content, long feedId, long userId, LocalDateTime createdAt, LocalDateTime updatedAt, int likeCount) {
+        this.id = id;
+        this.content = content;
+        this.feedId = feedId;
+        this.userId = userId;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.likeCount = likeCount;
+    }
 }

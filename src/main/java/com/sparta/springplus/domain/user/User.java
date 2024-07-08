@@ -1,16 +1,15 @@
 package com.sparta.springplus.domain.user;
 
 
+import com.sparta.springplus.domain.common.TimeStamp;
+import com.sparta.springplus.domain.company.Company;
 import com.sparta.springplus.domain.feed.Feed;
-import com.sparta.springplus.domain.likes.FeedLikes;
+import com.sparta.springplus.domain.follow.Follow;
 import com.sparta.springplus.domain.reply.Reply;
 import com.sparta.springplus.global.enums.ErrorType;
 import com.sparta.springplus.global.enums.Status;
 import com.sparta.springplus.global.enums.UserRole;
 import com.sparta.springplus.global.exception.CustomException;
-import com.sparta.springplus.domain.company.Company;
-import com.sparta.springplus.domain.follow.Follow;
-import com.sparta.springplus.domain.common.TimeStamp;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
