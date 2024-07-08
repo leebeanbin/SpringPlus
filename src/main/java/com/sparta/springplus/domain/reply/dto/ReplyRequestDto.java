@@ -1,17 +1,20 @@
 package com.sparta.springplus.domain.reply.dto;
 
+import com.sparta.springplus.domain.reply.Reply;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
-@NoArgsConstructor
 public class ReplyRequestDto {
 
     @NotBlank
     private String content;
 
-    public ReplyRequestDto(String content) {
-        this.content = content;
+
+    public Reply toEntity(){
+        return Reply.builder()
+                .content(content)
+                .build();
     }
 }

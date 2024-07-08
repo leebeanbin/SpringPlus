@@ -71,6 +71,8 @@ public class LikesService {
                 .orElseThrow(() -> new CustomException(ErrorType.NOT_FOUND_LIKE));
 
         feedLikesRepository.delete(feedLikes);
+        userDetails.getUser().deleteFeedLike(feed);
+        feed.deleteFeedLike(feedLikes);
 
         return feed.decreaseLikesCount();
     }
@@ -89,8 +91,10 @@ public class LikesService {
             throw new CustomException(ErrorType.DUPLICATE_LIKE);
         }
 
-        replyLikesRepository.save(new ReplyLikes(reply, userDetails.getUser()));
-
+        ReplyLikes replyLikes = new ReplyLikes(reply, userDetails.getUser());
+        replyLikesRepository.save(replyLikes);
+        reply.addReplyLikes(replyLikes);
+        reply.getUser().addLikeReply(reply);
         return reply.increaseLikesCount();
     }
 
@@ -104,6 +108,8 @@ public class LikesService {
                 .orElseThrow(() -> new CustomException(ErrorType.NOT_FOUND_LIKE));
 
         replyLikesRepository.delete(replyLikes);
+        reply.deleteReplyLikes(replyLikes);
+        reply.getUser().deleteReplyLike(reply);
 
         return reply.decreaseLikesCount();
     }

@@ -38,6 +38,29 @@ Content-Type: application/json
   client.global.set("RefreshToken", response.headers.valueOf("RefreshToken"));
 %}
 
+### 이메일 인증 코드 전송
+POST http://localhost:8080/email
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+### 인증 코드 확인
+POST http://localhost:8080/email/verify
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "authCode": "VE7vD0P1"
+}
+
+### 회원 프로필 조회
+GET http://localhost:8080/users/profile?username={{username}}
+AccessToken: {{AccessToken}}
+Content-Type: application/json
+
+
 ### 회원 프로필 수정
 PUT http://localhost:8080/users
 AccessToken: {{AccessToken}}
@@ -59,22 +82,16 @@ Content-Type: application/json
   "newPassword":"1qaz2wsx3edc!@#"
 }
 
-### 이메일 인증 코드 전송
-POST http://localhost:8080/email
+### 비밀번호 변경
+PATCH http://localhost:8080/users
+AccessToken: {{AccessToken}}
 Content-Type: application/json
 
 {
-  "email": "{{email}}"
+  "currentPassword": "1qaz2wsx3edc!@#",
+  "newPassword": "{{password}}"
 }
 
-### 인증 코드 확인
-POST http://localhost:8080/email/verify
-Content-Type: application/json
-
-{
-  "email": "{{email}}",
-  "authCode": "QoH0bcLI"
-}
 
 ### 게시물 작성
 POST http://localhost:8080/feed
@@ -87,7 +104,7 @@ Content-Type: application/json
 }
 
 ### 게시물 단건 조회 with likes
-GET http://localhost:8080/feed/2
+GET http://localhost:8080/feed/1
 AccessToken: {{AccessToken}}
 Content-Type: application/json
 
@@ -107,7 +124,6 @@ AccessToken: {{AccessToken}}
 Content-Type: application/json
 
 {
-
   "title" : "{{update_title}}",
   "content" : "{{update_content}}"
 }
@@ -129,6 +145,11 @@ Content-Type: application/json
 ### 댓글 조회
 GET http://localhost:8080/feed/{{feedId}}/reply
 AccessToken: {{AccessToken}}
+
+### 댓글  조회 I marked or liked
+GET http://localhost:8080/feed/{{feedId}}/reply/liked?page=0&size=5
+AccessToken: {{AccessToken}}
+Content-Type: application/json
 
 ### 댓글 수정
 PATCH http://localhost:8080/feed/1/reply/2
@@ -160,7 +181,7 @@ GET http://localhost:8080/feed/following
 AccessToken: {{AccessToken}}
 
 ### 피드 좋아요 추가
-POST http://localhost:8080/feed/4/likes
+POST http://localhost:8080/feed/{{feedId}}/likes
 AccessToken: {{AccessToken}}
 
 ### 피드 좋아요 삭제

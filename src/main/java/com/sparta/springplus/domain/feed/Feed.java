@@ -83,6 +83,10 @@ public class Feed extends TimeStamp {
         likesList.add(feedLikes);
     }
 
+    public void deleteFeedLike(FeedLikes feedLikes){
+        likesList.remove(feedLikes);
+    }
+
 
     /**
      * 서비스 메소드 - 외부에서 엔티티를 수정할 메소드를 정의합니다. (단일 책임을 가지도록 주의합니다.)

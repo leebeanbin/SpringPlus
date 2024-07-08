@@ -12,9 +12,10 @@ public class FeedRequestDto {
     private String content;
     private Status status;
 
-    public Feed toEntity(UserDetailsImpl user) {
+    public Feed toEntity(User user) {
         return Feed.builder()
-            .user(user.getUser())
+
+            .user(user)
             .title(title)
             .content(content)
             .status(status != null ? status : Status.ACTIVE)

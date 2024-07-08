@@ -11,27 +11,33 @@ import com.sparta.springplus.domain.feed.repository.FeedRepository;
 import com.sparta.springplus.domain.reply.repository.ReplyRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ReplyService {
 
     private final ReplyRepository replyRepository;
     private final FeedRepository feedRepository;
 
-    public ReplyResponseDto createReply(long feedId, ReplyRequestDto replyRequestDto, User user) {
+    public ReplyResponseDto createReply(Long feedId, ReplyRequestDto replyRequestDto, User user) {
         Feed feed = feedRepository.findById(feedId)
             .orElseThrow(() -> new CustomException(ErrorType.NOT_FOUND_FEED));
 
-        Reply reply = new Reply(replyRequestDto, feed, user);
+        Reply reply = replyRequestDto.toEntity();
+        reply.setUserAndFeed(user, feed);
         Reply saveReply = replyRepository.save(reply);
 
         return new ReplyResponseDto(saveReply);
     }
 
-    public void deleteReply(long feedId, long replyId, User user) {
+    public void deleteReply(Long feedId ,Long replyId, User user) {
         Reply reply = replyRepository.findById(replyId)
             .orElseThrow(() -> new CustomException(ErrorType.NOT_FOUND_REPLY));
 
@@ -42,7 +48,7 @@ public class ReplyService {
     }
 
     @Transactional
-    public ReplyResponseDto updateReply(long feedId, long replyId, ReplyRequestDto requestDto,
+    public ReplyResponseDto updateReply(Long feedId, Long replyId, ReplyRequestDto requestDto,
         User user) {
         Reply reply = replyRepository.findById(replyId)
             .orElseThrow(() -> new CustomException(ErrorType.NOT_FOUND_REPLY));
@@ -54,7 +60,7 @@ public class ReplyService {
         return new ReplyResponseDto(reply);
     }
 
-    public List<ReplyResponseDto> findRepliesAll(long feedId) {
+    public List<ReplyResponseDto> findRepliesAll(Long feedId) {
         Feed feed = feedRepository.findById(feedId)
             .orElseThrow(() -> new CustomException(ErrorType.NOT_FOUND_FEED));
 
@@ -63,4 +69,13 @@ public class ReplyService {
                 .toList();
     }
 
+    public Page<ReplyResponseDto> getLikedRepliesWithPage(Long userId, Long feedId, int page, int size) {
+        // set up the method how we make page
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ReplyResponseDto> responseDtoPage = replyRepository.findLikedReplyByUserIdAndFeedId(userId, feedId, pageable);
+        if(responseDtoPage.isEmpty()){
+            log.info(ErrorType.NO_EXITS_YOU_LIKED.getMessage());
+        }
+        return responseDtoPage;
+    }
 }

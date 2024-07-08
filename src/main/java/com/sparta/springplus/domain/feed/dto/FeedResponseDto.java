@@ -1,7 +1,6 @@
 package com.sparta.springplus.domain.feed.dto;
 
 import com.sparta.springplus.domain.feed.Feed;
-import com.sparta.springplus.domain.likes.FeedLikes;
 import com.sparta.springplus.global.enums.Status;
 import lombok.Getter;
 

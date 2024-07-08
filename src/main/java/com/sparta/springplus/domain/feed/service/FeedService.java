@@ -19,6 +19,7 @@ import com.sparta.springplus.domain.user.repository.UserRepository;
 import com.sparta.springplus.global.security.UserDetailsImpl;
 import com.sparta.springplus.global.security.UserDetailsServiceImpl;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,9 +50,15 @@ public class FeedService {
      */
     @Transactional
     public FeedResponseDto createFeed(FeedRequestDto requestDto, User user) {
-        UserDetailsImpl users = userDetailsService.loadUserByUsername(user.getUsername()); // user 검증
+        User userFromRepo = userRepository.findById(user.getId()).orElseThrow(
+                () -> new CustomException(ErrorType.NOT_EXISTS_USER)
+        );
 
-        Feed feed = requestDto.toEntity(users);
+        if(!Objects.equals(userFromRepo.getUsername(),userDetailsService.loadUserByUsername(user.getUsername()).getUsername())){
+            throw new CustomException(ErrorType.NOT_EXISTS_USER);
+        }
+
+        Feed feed = requestDto.toEntity(userFromRepo);
         Feed savedFeed = feedRepository.save(feed);
         return new FeedResponseDto(savedFeed);
     }

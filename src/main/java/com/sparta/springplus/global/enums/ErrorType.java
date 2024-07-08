@@ -49,7 +49,8 @@ public enum ErrorType {
     NOT_FOLLOWING(HttpStatus.LOCKED, "팔로우 한 상태가 아닙니다."),
 
     // admin
-    NOT_EXIST_ALL_USERS(HttpStatus.BAD_REQUEST, "회원이 존재하지 않습니다.");
+    NOT_EXIST_ALL_USERS(HttpStatus.BAD_REQUEST, "회원이 존재하지 않습니다."),
+    NO_EXITS_YOU_LIKED(HttpStatus.BAD_REQUEST,"좋아요를 누른 댓글이 존재하지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final String message;

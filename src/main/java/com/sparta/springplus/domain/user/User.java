@@ -3,6 +3,7 @@ package com.sparta.springplus.domain.user;
 
 import com.sparta.springplus.domain.feed.Feed;
 import com.sparta.springplus.domain.likes.FeedLikes;
+import com.sparta.springplus.domain.reply.Reply;
 import com.sparta.springplus.global.enums.ErrorType;
 import com.sparta.springplus.global.enums.Status;
 import com.sparta.springplus.global.enums.UserRole;
@@ -69,6 +70,12 @@ public class User extends TimeStamp {
 
     @Column
     private Boolean refresh;
+
+    @Column
+    private Long feedLikeAmount = 0L;
+    @Column
+    private Long replyLikeAmount = 0L;
+
     /**
      * 생성자 - 약속된 형태로만 생성가능하도록 합니다.
      */
@@ -89,7 +96,10 @@ public class User extends TimeStamp {
      */
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    private List<Feed> feed;
+    private List<Feed> feed = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Reply> replies = new ArrayList<>();
 
     @ManyToOne
     @JoinColumn(name = "companyId", nullable = false)
@@ -106,8 +116,23 @@ public class User extends TimeStamp {
      */
     public void addLikeFeed(Feed feed){
         this.feed.add(feed);
+        ++this.feedLikeAmount;
     }
 
+    public void deleteFeedLike(Feed feed){
+        this.feed.remove(feed);
+        --this.feedLikeAmount;
+    }
+
+    public void addLikeReply(Reply reply){
+        this.replies.add(reply);
+        ++this.replyLikeAmount;
+    }
+
+    public void deleteReplyLike(Reply reply){
+        this.replies.remove(reply);
+        --this.replyLikeAmount;
+    }
 
     /**
      * 서비스 메소드 - 외부에서 엔티티를 수정할 메소드를 정의합니다. (단일 책임을 가지도록 주의합니다.)

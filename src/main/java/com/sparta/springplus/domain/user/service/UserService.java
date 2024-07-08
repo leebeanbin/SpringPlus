@@ -1,19 +1,21 @@
 package com.sparta.springplus.domain.user.service;
 
+import com.sparta.springplus.domain.company.service.CompanyService;
+import com.sparta.springplus.domain.user.User;
+import com.sparta.springplus.domain.user.UserPasswordLog;
+import com.sparta.springplus.domain.user.dto.SignupRequestDto;
+import com.sparta.springplus.domain.user.dto.UpdatePasswordReq;
+import com.sparta.springplus.domain.user.dto.UserSearchResponseDto;
+import com.sparta.springplus.domain.user.dto.UserUpdateRequestDto;
+import com.sparta.springplus.domain.user.repository.UserPasswordLogRepersitory;
+import com.sparta.springplus.domain.user.repository.UserRepository;
 import com.sparta.springplus.global.enums.ErrorType;
 import com.sparta.springplus.global.enums.Status;
 import com.sparta.springplus.global.exception.CustomException;
-import com.sparta.springplus.domain.user.dto.SignupRequestDto;
-import com.sparta.springplus.domain.user.dto.UpdatePasswordReq;
-import com.sparta.springplus.domain.user.dto.UserUpdateRequestDto;
-import com.sparta.springplus.domain.user.User;
-import com.sparta.springplus.domain.user.UserPasswordLog;
-import com.sparta.springplus.domain.user.repository.UserPasswordLogRepersitory;
-import com.sparta.springplus.domain.user.repository.UserRepository;
-import com.sparta.springplus.domain.company.service.CompanyService;
-import jakarta.persistence.EntityNotFoundException;
+import com.sparta.springplus.global.security.UserDetailsServiceImpl;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,6 +29,7 @@ public class UserService {
     private final UserPasswordLogRepersitory userPasswordLogRepersitory;
     private final CompanyService companyService;
     private final PasswordEncoder passwordEncoder;
+    private final UserDetailsServiceImpl userDetailsServiceImpl;
 
     @Transactional
     public User signup(SignupRequestDto requestDto) {
@@ -56,31 +59,31 @@ public class UserService {
 
     @Transactional
     public String updateProfile(Long id, UserUpdateRequestDto requestDto) {
-        User user = userRepository.findById(id).orElseThrow(()-> new CustomException(ErrorType.NOT_FOUND_USER));
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new CustomException(ErrorType.NOT_FOUND_USER));
         //1. 프로필수정
-        if(!requestDto.getIsTalTye()) {
-        String nickname = requestDto.getNickname();
-        String intro = requestDto.getIntro();
-        user.updateProfile(nickname, intro);
-        userRepository.save(user);
+        if (!requestDto.getIsTalTye()) {
+            String nickname = requestDto.getNickname();
+            String intro = requestDto.getIntro();
+            user.updateProfile(nickname, intro);
+            userRepository.save(user);
 
-        return "수정성공";
+            return "수정성공";
         }
-
 
         //2. 탈퇴
         // 유저의 상태가 정상이면 탈퇴 할수 있음
-        if(requestDto.getIsTalTye()) {
-        if(user.getStatus().equals(Status.ACTIVE)){
-            user.setStatus("탈퇴");
-            userRepository.save(user);
-            return "탈퇴성공";
-        }
+        if (requestDto.getIsTalTye()) {
+            if (user.getStatus().equals(Status.ACTIVE)) {
+                user.setStatus("탈퇴");
+                userRepository.save(user);
+                return "탈퇴성공";
+            }
 
-        // 유저의 상태가 정상이 아니면 탈퇴 할 수 없음
-        if(user.getStatus().equals(Status.DEACTIVATE)){
-            throw new CustomException(ErrorType.ALREADY_TALYE_USER);
-        }
+            // 유저의 상태가 정상이 아니면 탈퇴 할 수 없음
+            if (user.getStatus().equals(Status.DEACTIVATE)) {
+                throw new CustomException(ErrorType.ALREADY_TALYE_USER);
+            }
 
         }
         return "끝";
@@ -95,15 +98,16 @@ public class UserService {
 
         // 1.이메일로 유저를 가져온다
         User updateUser = userRepository.findByEmail(user.getEmail())
-                .orElseThrow(()-> new CustomException(ErrorType.NOT_FOUND_USER));
+                .orElseThrow(() -> new CustomException(ErrorType.NOT_FOUND_USER));
 
         //2 이전 3개의 비밀번호와 newPassword랑 겹치는거 있는지 확인
         List<UserPasswordLog> passwordLogs = userPasswordLogRepersitory
                 .findTop3ByUserIdOrderByCreatedAtDesc(updateUser.getId());
 
-        for(int i=0; i < passwordLogs.size(); i++) {
+        for (int i = 0; i < passwordLogs.size(); i++) {
             UserPasswordLog passwordLog = passwordLogs.get(i);
-            if(passwordEncoder.matches(passwordLog.getPassword(),passwordLog.getPassword())) {}
+            if (passwordEncoder.matches(passwordLog.getPassword(), passwordLog.getPassword())) {
+            }
         }
 
         //3.currentPassword 현재 user 패스워드 같은지 확인
@@ -111,7 +115,7 @@ public class UserService {
         String userPassword = updateUser.getPassword();
         String currentPassword = updatePasswordReq.getCurrentPassword();
 
-        if(!passwordEncoder.matches(currentPassword, userPassword)) {
+        if (!passwordEncoder.matches(currentPassword, userPassword)) {
             throw new RuntimeException();
         }
 
@@ -120,12 +124,6 @@ public class UserService {
         updateUser.updatePassword(hashedPassword);
 
         userRepository.save(updateUser);
-    }
-
-    public User findUserByUsername(String username) {
-        return userRepository.findUserByUsernameAndStatus(username, Status.ACTIVE)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        String.format("user with username does not exist.")));
     }
 
     /**
@@ -141,11 +139,23 @@ public class UserService {
 
     /**
      * ID로 회원 찾기
+     *
      * @param userId 회원 ID
      * @return 회원
      */
     public User getUserById(Long userId) {
         return userRepository.findById(userId).orElseThrow(
-                ()-> new CustomException(ErrorType.NOT_FOUND_USER));
+                () -> new CustomException(ErrorType.NOT_FOUND_USER));
+    }
+
+    public UserSearchResponseDto getUserProfile(String username ,User user) {
+        userRepository.findUserByUsername(user.getUsername()).orElseThrow(
+                () -> new CustomException(ErrorType.NOT_EXISTS_USER)
+        );
+
+        if (!Objects.equals(username, user.getUsername())) {
+            throw new CustomException(ErrorType.NOT_EXISTS_USER);
+        }
+        return new UserSearchResponseDto(user);
     }
 }

@@ -3,6 +3,7 @@ package com.sparta.springplus.domain.feed.controller;
 
 import com.querydsl.core.Tuple;
 import com.sparta.springplus.domain.feed.dto.GetEachFeedDto;
+import com.sparta.springplus.domain.user.User;
 import com.sparta.springplus.global.enums.ResponseMessage;
 import com.sparta.springplus.global.security.UserDetailsImpl;
 import com.sparta.springplus.domain.feed.dto.FeedRequestDto;
@@ -43,7 +44,8 @@ public class FeedController {
     public ResponseEntity<ResponseEntityDto<FeedResponseDto>> createFeed(
         @RequestBody FeedRequestDto requestDto,
         @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        FeedResponseDto responseDto = feedService.createFeed(requestDto, userDetails.getUser());
+        User user = userDetails.getUser();
+        FeedResponseDto responseDto = feedService.createFeed(requestDto, user);
         ResponseEntityDto<FeedResponseDto> responseEntity = new ResponseEntityDto<>(ResponseMessage.FEED_CREATE_SUCCESS, responseDto);
         return ResponseEntity.ok(responseEntity);
     }
