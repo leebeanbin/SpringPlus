@@ -12,11 +12,4 @@ public interface ReplyRepository extends JpaRepository<Reply, Long>, ReplyReposi
 
     List<Reply> findAllByFeedId(long feedId);
 
-//    @Query(
-//            "SELECT new com.sparta.springplus.domain.reply.dto.ReplyResponseDto(r)" +
-//            "FROM Reply r JOIN r.likesList l " +
-//                    "where l.user.id = :userId AND l.reply.feed.id = :feedId " +
-//                    "ORDER BY r.createdAt DESC"
-//    )
-//    Page<ReplyResponseDto> findLikedReplyByUserIdAndFeedId(@Param("userId") Long userId,@Param("feedId") Long feedId, Pageable pageable);
 }

@@ -1,17 +1,20 @@
 package com.sparta.springplus.domain.follow.service;
 
+import com.sparta.springplus.domain.follow.Follow;
+import com.sparta.springplus.domain.follow.dto.FollowResponseDto;
+import com.sparta.springplus.domain.follow.repository.FollowRepository;
+import com.sparta.springplus.domain.user.User;
 import com.sparta.springplus.domain.user.service.UserService;
 import com.sparta.springplus.global.enums.ErrorType;
 import com.sparta.springplus.global.enums.Status;
 import com.sparta.springplus.global.exception.CustomException;
-import com.sparta.springplus.domain.follow.dto.FollowResponseDto;
-import com.sparta.springplus.domain.follow.Follow;
-import com.sparta.springplus.domain.user.User;
-import com.sparta.springplus.domain.follow.repository.FollowRepository;
-import com.sparta.springplus.domain.user.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,13 +23,13 @@ import org.springframework.stereotype.Service;
 public class FollowService {
 
     private final UserService userService;
-    private final UserRepository userRepository;
     private final FollowRepository followRepository;
 
     /**
      * 팔로우 추가
+     *
      * @param fromUser 팔로우를 요청한 회원
-     * @param userId 팔로우를 요청 받은 회원의 ID
+     * @param userId   팔로우를 요청 받은 회원의 ID
      * @return 팔로우 요청 받은 회원의 이름
      */
     public String createFollow(User fromUser, Long userId) {
@@ -47,6 +50,7 @@ public class FollowService {
                 .toUser(toUser)
                 .build();
 
+        toUser.addFollower(follow);
         followRepository.save(follow);
 
         return toUser.getNickname();
@@ -54,7 +58,8 @@ public class FollowService {
 
     /**
      * 팔로잉 목록 조회
-     * @param user 로그인한 회원
+     *
+     * @param user   로그인한 회원
      * @param userId 팔로잉 목록을 조회할 회원 ID
      * @return 팔로잉 목록
      */
@@ -80,7 +85,8 @@ public class FollowService {
 
     /**
      * 팔로워 목록 조회
-     * @param user 로그인한 회원
+     *
+     * @param user   로그인한 회원
      * @param userId 팔로워 목록을 조회할 회원 ID
      * @return 팔로워 목록
      */
@@ -106,7 +112,8 @@ public class FollowService {
 
     /**
      * 팔로우 취소
-     * @param user 팔로우 취소하는 회원
+     *
+     * @param user   팔로우 취소하는 회원
      * @param userId 팔로우 취소 당하는 회원
      * @return 팔로우 취소 당하는 회원 이름
      */
@@ -114,11 +121,12 @@ public class FollowService {
         User toUser = userService.getUserById(userId);
         toUser.verifyStatusWhenFollow();
 
-        log.info("deleteFollow : " + toUser.getNickname());
+        log.info("deleteFollow : {}", toUser.getNickname());
 
         Follow follow = followRepository.findByFromUserAndToUser(user, toUser)
                 .orElseThrow(() -> new CustomException(ErrorType.NOT_FOLLOWING));
 
+        toUser.deleteFollower(follow);
         followRepository.delete(follow);
 
         log.info("delete success");
@@ -128,7 +136,8 @@ public class FollowService {
 
     /**
      * 로그인한 회원과 조회된 회원의 팔로우 관계 확인
-     * @param response 팔로우 목록
+     *
+     * @param response     팔로우 목록
      * @param loggedInUser 로그인한 회원
      */
     private void UserFollowedByLoggedInUser(FollowResponseDto response, User loggedInUser) {
@@ -139,5 +148,10 @@ public class FollowService {
 
         response.setFollowStatus(
                 followRepository.findByFromUserAndToUser(loggedInUser, user).isPresent());
+    }
+
+    public Page<FollowResponseDto> getFollowerListByDesc(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return followRepository.findUserByFollowerDesc(pageable);
     }
 }

@@ -9,6 +9,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ReplyRepositoryCustom {
-
     Page<ReplyResponseDto> findLikedReplyByUserIdAndFeedId(@Param("userId") Long userId,@Param("feedId") Long feedId, Pageable pageable);
 }

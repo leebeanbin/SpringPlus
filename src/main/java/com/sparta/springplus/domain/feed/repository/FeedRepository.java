@@ -12,12 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface FeedRepository extends JpaRepository<Feed,Long>{
+public interface FeedRepository extends JpaRepository<Feed,Long>, FeedRepositoryCustom{
     Page<Feed> findByUser_Company(Company company, Pageable pageable);
     Page<Feed> findAllByUserIdIn(List<Long> followList, Pageable pageable);
-    @Query("SELECT new com.sparta.springplus.domain.feed.dto.GetEachFeedDto(f) " +
-            "FROM Feed f JOIN f.likesList l " +
-            "WHERE l.user.id = :userId " +
-            "ORDER BY f.createdAt DESC")
-    Page<GetEachFeedDto> findLikedFeedsByUserId(@Param("userId") Long userId, Pageable pageable);
 }

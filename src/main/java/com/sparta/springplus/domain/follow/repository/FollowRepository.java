@@ -5,6 +5,6 @@ import com.sparta.springplus.domain.user.User;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface FollowRepository extends JpaRepository<Follow, Long> {
+public interface FollowRepository extends JpaRepository<Follow, Long> , FollowRepositoryCustom{
     Optional<Follow> findByFromUserAndToUser(User fromUser, User toUser);
 }

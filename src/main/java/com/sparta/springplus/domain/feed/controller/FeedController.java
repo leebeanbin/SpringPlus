@@ -56,11 +56,13 @@ public class FeedController {
     }
 
     @GetMapping("/liked")
-    public ResponseEntity<List<GetEachFeedDto>> getLikedFeeds(@AuthenticationPrincipal UserDetailsImpl userDetails,
+    public ResponseEntity<?> getLikedFeeds(@AuthenticationPrincipal UserDetailsImpl userDetails,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size) {
 
-        return ResponseEntity.ok().body(feedService.getLikedFeedsWithPage(userDetails, page, size).getContent());
+        List<GetEachFeedDto> responseDtoList = feedService.getLikedFeedsWithPage(userDetails, page, size).getContent();
+        return ResponseEntity.ok(
+                new ResponseEntityDto<>(ResponseMessage.FEED_READ_SUCCESS, responseDtoList));
     }
 
     /**

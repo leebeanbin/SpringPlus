@@ -1,5 +1,6 @@
 package com.sparta.springplus.domain.follow.controller;
 
+import com.sparta.springplus.domain.follow.Follow;
 import com.sparta.springplus.global.enums.ResponseMessage;
 import com.sparta.springplus.global.security.UserDetailsImpl;
 import com.sparta.springplus.domain.follow.dto.FollowResponseDto;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -67,6 +69,17 @@ public class FollowController {
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
 
         List<FollowResponseDto> responseDtoList = followService.getFollowerList(userDetails.getUser(), userId);
+
+        return ResponseEntity.ok(
+                new ResponseEntityDto<>(ResponseMessage.FOLLOWER_LIST, responseDtoList));
+    }
+
+    @GetMapping("/follwers")
+    public ResponseEntity<?> getFollowerListByDesc(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size){
+
+        List<FollowResponseDto> responseDtoList = followService.getFollowerListByDesc(page, size).getContent();
 
         return ResponseEntity.ok(
                 new ResponseEntityDto<>(ResponseMessage.FOLLOWER_LIST, responseDtoList));

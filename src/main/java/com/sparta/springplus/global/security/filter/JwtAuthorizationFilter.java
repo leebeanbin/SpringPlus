@@ -38,7 +38,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
         String url = request.getRequestURI();
 
-        if (url.startsWith("/email") || ((url.startsWith("/users") && "POST".equalsIgnoreCase(
+        if (url.startsWith("/email") || ((url.equals("/users") && "POST".equalsIgnoreCase(
                 request.getMethod())))) {
             filterChain.doFilter(request, response);
             return;

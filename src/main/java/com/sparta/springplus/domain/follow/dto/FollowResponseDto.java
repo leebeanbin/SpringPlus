@@ -19,7 +19,15 @@ public class FollowResponseDto {
         this.userName = user.getNickname();
         this.userIntro = user.getIntro();
         this.userEmail = user.getEmail();
+    }
 
+    public FollowResponseDto(Long userId, String companyName, String userName, String userIntro, String userEmail, boolean followStatus){
+        this.userId = userId;
+        this.companyName = companyName;
+        this.userName = userName;
+        this.userIntro = userIntro;
+        this.userEmail = userEmail;
+        setFollowStatus(followStatus);
     }
 
     /**
